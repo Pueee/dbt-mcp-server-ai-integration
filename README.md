@@ -18,6 +18,8 @@ cloud cost to zero for this project
 ## What's in here
 
 ```
+├── ingestion/            # Python: API → raw JSON in DuckDB (ad campaigns, weather)
+
 seeds/          three raw CSV feeds standing in for ad platform extracts
 models/
   staging/      one view per source, renaming and typing only
@@ -38,6 +40,17 @@ raw_campaigns ──> stg_campaigns ──> dim_campaign ─┼─> fct_ad_perfo
                                         (SCD2)        mart_campaign_pacing
 raw_ad_spend  ──> stg_ad_spend ─────────────────────────> (fct)
 ```
+
+## Python ingestion layer
+
+Raw data lands in DuckDB from Python before dbt runs. Python only extracts and loads; flattening and modelling happen in dbt.
+
+- **Ad campaigns:** a client for a mock, Meta-style ad API. It handles Bearer token auth, retries that fail fast on 401 and back off on 5xx, `Retry-After` on 429 rate limits, and cursor pagination. Campaigns are stored as raw JSON in `raw.ad_campaigns` and flattened in `stg_api_ad_campaigns`. A singular test fails if the API sends an unexpected JSON key.
+- 
+- **Weather:** a practice pipeline on the Open-Meteo API covering high-water-mark incremental loads, weekly backfills that resume after a crash, multiple locations and schema-change handling.
+
+Details are in [ingestion/README.md](ingestion/README.md).
+
 ## Quickstart
 
 ```bash
@@ -170,6 +183,7 @@ Best to add config :
 
 ## Known limitations
 
+- Most marketing data still comes from seeds. Campaign metadata is ingested from a mock ad API, but it isn't joined to the seed data yet.
 - Seeds stand in for real ingestion. There is no extract layer.
 - `dim_date` is hardcoded to 2026 rather than derived from the fact table range.
 - No CI. A GitHub Action running `dbt build` on pull requests is the obvious
